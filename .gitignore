@@ -1,0 +1,7 @@
+# 打包产物（Release 附件，不入 git）
+dist/
+
+# 构建产物
+**/bin/
+**/obj/
+__pycache__/

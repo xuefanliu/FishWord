@@ -1,0 +1,29 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <!-- 深色主题调色板（暗蓝，参考 Tailwind Slate / Blue 色谱） -->
+
+    <!-- 窗口 / 卡片 -->
+    <SolidColorBrush x:Key="Brush.WindowBg" Color="#F21B2A3A"/>        <!-- 展开面板底（95% 不透明暗蓝） -->
+    <SolidColorBrush x:Key="Brush.BubbleBg" Color="#E61B2A3A"/>       <!-- 折叠气泡底 -->
+    <SolidColorBrush x:Key="Brush.CardBg" Color="#22000000"/>         <!-- 卡片（弱，半透明黑叠加） -->
+    <SolidColorBrush x:Key="Brush.CardStrongBg" Color="#33000000"/>   <!-- 卡片（强，释义框等） -->
+    <SolidColorBrush x:Key="Brush.Border" Color="#664E8CFF"/>         <!-- 边框（主题蓝 40%） -->
+    <SolidColorBrush x:Key="Brush.TooltipBg" Color="#F21B2A3A"/>      <!-- ToolTip / 菜单底 -->
+
+    <!-- 文字 -->
+    <SolidColorBrush x:Key="Brush.Text.Primary" Color="#E6EDF3"/>
+    <SolidColorBrush x:Key="Brush.Text.Muted" Color="#C6D0DC"/>
+    <SolidColorBrush x:Key="Brush.Text.Secondary" Color="#9AA7B8"/>
+    <SolidColorBrush x:Key="Brush.Title" Color="#A9B8CC"/>
+
+    <!-- 强调 / 按钮 -->
+    <SolidColorBrush x:Key="Brush.Accent" Color="#4E8CFF"/>
+    <SolidColorBrush x:Key="Brush.Highlight" Color="#2F6CD6"/>
+    <SolidColorBrush x:Key="Brush.TabSelected" Color="#334E8CFF"/>
+    <SolidColorBrush x:Key="Brush.TabUnselected" Color="Transparent"/>
+    <SolidColorBrush x:Key="Brush.ButtonBg" Color="#335E9CFF"/>
+    <SolidColorBrush x:Key="Brush.ButtonHoverBg" Color="#445E9CFF"/>
+    <SolidColorBrush x:Key="Brush.ButtonPressedBg" Color="#225E9CFF"/>
+    <SolidColorBrush x:Key="Brush.ButtonFg" Color="White"/>
+    <SolidColorBrush x:Key="Brush.IconFg" Color="White"/>
+</ResourceDictionary>

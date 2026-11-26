@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="../tests/FishWord.Core.Tests/FishWord.Core.Tests.csproj" />
+  <Project Path="FishWord.App/FishWord.App.csproj" />
+  <Project Path="FishWord.Core/FishWord.Core.csproj" />
+  <Project Path="FishWord.Infrastructure/FishWord.Infrastructure.csproj" />
+</Solution>

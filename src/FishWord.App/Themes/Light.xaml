@@ -1,0 +1,29 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <!-- 浅色主题调色板（亮灰蓝，参考 Tailwind Slate / Blue 色谱） -->
+
+    <!-- 窗口 / 卡片（透明度与深色主题对齐：窗口底 95%、卡片 13%/20% 半透明，透出后面的桌面/窗口） -->
+    <SolidColorBrush x:Key="Brush.WindowBg" Color="#F2F2F4F8"/>       <!-- 展开面板底（95% 浅灰蓝） -->
+    <SolidColorBrush x:Key="Brush.BubbleBg" Color="#E6F2F4F8"/>       <!-- 折叠气泡底（90%） -->
+    <SolidColorBrush x:Key="Brush.CardBg" Color="#22FFFFFF"/>         <!-- 卡片（13% 白） -->
+    <SolidColorBrush x:Key="Brush.CardStrongBg" Color="#33FFFFFF"/>   <!-- 卡片（强，20% 白） -->
+    <SolidColorBrush x:Key="Brush.Border" Color="#C9D4E0"/>           <!-- 边框（浅灰蓝） -->
+    <SolidColorBrush x:Key="Brush.TooltipBg" Color="#F2FFFFFF"/>      <!-- ToolTip / 菜单底（95% 白） -->
+
+    <!-- 文字 -->
+    <SolidColorBrush x:Key="Brush.Text.Primary" Color="#1F2937"/>
+    <SolidColorBrush x:Key="Brush.Text.Muted" Color="#4B5563"/>
+    <SolidColorBrush x:Key="Brush.Text.Secondary" Color="#7B8794"/>
+    <SolidColorBrush x:Key="Brush.Title" Color="#374151"/>
+
+    <!-- 强调 / 按钮（浅色 UI 用「淡蓝底 + 深蓝字」的 tonal 风格：存在感弱、融入背景，符合摸鱼场景的低调诉求） -->
+    <SolidColorBrush x:Key="Brush.Accent" Color="#2F6CD6"/>
+    <SolidColorBrush x:Key="Brush.Highlight" Color="#2F6CD6"/>
+    <SolidColorBrush x:Key="Brush.TabSelected" Color="#E1EBFA"/>
+    <SolidColorBrush x:Key="Brush.TabUnselected" Color="Transparent"/>
+    <SolidColorBrush x:Key="Brush.ButtonBg" Color="#E1EBFA"/>
+    <SolidColorBrush x:Key="Brush.ButtonHoverBg" Color="#D3E2F7"/>
+    <SolidColorBrush x:Key="Brush.ButtonPressedBg" Color="#C4D6F3"/>
+    <SolidColorBrush x:Key="Brush.ButtonFg" Color="#2F6CD6"/>
+    <SolidColorBrush x:Key="Brush.IconFg" Color="#1F2937"/>
+</ResourceDictionary>
