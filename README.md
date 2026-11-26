@@ -11,9 +11,9 @@ Windows 桌面常驻的**半透明背单词悬浮窗**——让用户在等编�
 ## 界面预览
 
 <p align="center">
+  <img src="docs/images/bubble.png" width="10%" title="折叠气泡">
   <img src="docs/images/home.png" width="16%" title="主界面">
   <img src="docs/images/study.png" width="16%" title="学习界面">
-  <img src="docs/images/bubble.png" width="10%" title="折叠气泡">
   <img src="docs/images/known.png" width="16%" title="熟词列表">
   <img src="docs/images/settings.png" width="16%" title="设置">
   <img src="docs/images/light-theme.png" width="16%" title="浅色主题">
