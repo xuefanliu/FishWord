@@ -45,6 +45,7 @@ public partial class MainWindow : Window
     private bool _remembered = true;
     private bool _revealed;
     private bool _reviewing;
+    private bool _sessionComplete; // 学习/复习会话完成态：只显示「完成！」，隐藏全部内容与按钮
     private int _reviewTotal;
     private int _reviewDone;
     private readonly HashSet<int> _reviewedToday = new();
@@ -361,9 +362,15 @@ public partial class MainWindow : Window
         StudyCountText.Text = $"{study.Completed} / {study.Goal}";
         BubbleProgressText.Text = $"{study.Completed}/{study.Goal}";
 
-        bool inProgress = _progressRepo!.HasInProgressStudy(_today);
-        StudyButton.Content = inProgress
-            ? "继续学习"
+        // 按钮状态机（与 StartStudy 的队列裁剪逻辑对齐，修复「改小目标后永远无法再来一组」）：
+        //   - 按新目标裁剪后仍有词可背 → 继续学习（有进行中）/ 去学习（纯新词）
+        //   - 裁剪后无词可背 且 完成 ≥ 目标 → 再来一组
+        //   - 其他 → 去学习
+        var homePasses = _progressRepo.GetDailyPasses(_today);
+        int effective = EffectiveRemainingCount(homePasses, study.Goal, study.Completed);
+        bool inProgress = _progressRepo.HasInProgressStudy(_today);
+        StudyButton.Content = effective > 0
+            ? (inProgress ? "继续学习" : "去学习")
             : (study.Completed >= study.Goal ? "再来一组" : "去学习");
 
         var review = _progressRepo!.GetReviewSummary(_today);
@@ -385,10 +392,23 @@ public partial class MainWindow : Window
         }
     }
 
+    /// <summary>按当前目标裁剪后的「有效待背词数」（与 StartStudy 的队列裁剪逻辑一致）：
+    /// 进行中（pass 1/2）优先保留、未开始（pass 0）补足剩余名额，超出的不计入。</summary>
+    private static int EffectiveRemainingCount(IReadOnlyDictionary<int, int> passes, int goal, int completed)
+    {
+        int need = Math.Max(0, goal - completed);
+        int inProgress = passes.Count(p => p.Value is 1 or 2);
+        int kept = Math.Min(inProgress, need);
+        int fresh = passes.Count(p => p.Value == 0);
+        kept += Math.Min(fresh, Math.Max(0, need - kept));
+        return kept;
+    }
+
     private void StartStudy(bool extraGroup)
     {
         _reviewing = false;
         _reviewScheduler = null;
+        _sessionComplete = false;
 
         StudyView.Visibility = Visibility.Visible;
         HomeView.Visibility = Visibility.Collapsed;
@@ -410,14 +430,45 @@ public partial class MainWindow : Window
 
         int completed = passes.Count(p => p.Value >= 3);
 
-        // 队列：未完成的词（pass 0/1/2）从下一遍继续
-        var queue = new List<(int WordId, int Pass)>();
-        foreach (var kv in passes)
+        // 队列组装：今日实际要背的量 = goal − 已完成（用户中途调小目标时按新目标裁剪队列，
+        // 修复「10 改 5 后仍背到 10」的问题）。
+        //   - 进行中的词（pass 1/2）优先保留：更接近完成的排前面；
+        //   - 未开始（pass 0）按顺序补足剩余名额，多余的释放（与词书切换的释放逻辑一致）；
+        //   - 进行中超出的词记录保留（进度不丢），只是今天不再安排；
+        //   - 「再来一组」不受裁剪影响（追加语义）。
+        var kept = new List<(int WordId, int Pass)>();
+        var releaseIds = new List<int>();
+
+        if (extraGroup)
         {
-            if (kv.Value >= 3)
-                continue;
-            queue.Add((kv.Key, kv.Value + 1));
+            // 「再来一组」只追加一整组新词（数量 = 当前目标 N）；被裁剪搁置的进行中词
+            // （目标调小场景）今天不再安排——修复「目标 10→5 后点再来一组要学到 15/5」。
+            // 正常场景（无进行中词时才会出现「再来一组」按钮）行为不变。
         }
+        else
+        {
+            int need = Math.Max(0, goal - completed);
+            foreach (var kv in passes.Where(p => p.Value == 2)
+                     .Concat(passes.Where(p => p.Value == 1)))
+            {
+                if (kept.Count >= need)
+                    break;
+                kept.Add((kv.Key, kv.Value + 1));
+            }
+            foreach (var kv in passes.Where(p => p.Value == 0))
+            {
+                if (kept.Count >= need)
+                {
+                    releaseIds.Add(kv.Key); // 多余的未开始占位词释放
+                    continue;
+                }
+                kept.Add((kv.Key, 1));
+            }
+        }
+
+        var queue = kept;
+        if (releaseIds.Count > 0)
+            _progressRepo!.DeleteDailyWords(_today, releaseIds);
 
         // 需要补的新词数：
         //   - 再来一组：追加一整组 goal 个；
@@ -481,6 +532,7 @@ public partial class MainWindow : Window
 
     private void StartReview()
     {
+        _sessionComplete = false;
         var dueWords = _progressRepo!.GetDueReviewWords(_today);
         if (dueWords.Count == 0)
         {
@@ -749,19 +801,22 @@ public partial class MainWindow : Window
         var (wordId, pass) = scheduler.Next();
         if (wordId < 0)
         {
+            // 会话完成态：只显示「完成！」+ 今日统计，隐藏全部内容/Tab/按钮
+            _sessionComplete = true;
+            _currentWordId = -1;
+            _revealed = false;
             SpellingText.Text = _reviewing ? "复习完成！" : "完成！";
             PhoneticText.Text = "";
             PassText.Text = "";
+            MorphText.Text = "";
             MeaningText.Text = _reviewing
                 ? $"今日已复习 {_reviewDone}/{_reviewTotal}"
                 : $"今日已学 {_completed}/{_currentGoal}";
-            MeaningBox.Visibility = Visibility.Visible;
-            ExampleBox.Visibility = Visibility.Collapsed;
-            RootBox.Visibility = Visibility.Collapsed;
-            HideAllButtons();
+            UpdateView();
             return;
         }
 
+        _sessionComplete = false;
         _currentWordId = wordId;
         _currentPass = pass;
         _remembered = true;
@@ -1190,6 +1245,27 @@ public partial class MainWindow : Window
 
     private void UpdateView()
     {
+        // 会话完成态：只显示「完成！」+ 今日统计卡片，其余（音标/语素/Tab/内容卡片/🔊/熟词/按钮）全部隐藏
+        if (_sessionComplete)
+        {
+            PhoneticText.Visibility = Visibility.Collapsed;
+            MorphText.Visibility = Visibility.Collapsed;
+            PassText.Visibility = Visibility.Collapsed;
+            MeaningBox.Visibility = Visibility.Visible;
+            DetailTabBar.Visibility = Visibility.Collapsed;
+            ExampleBox.Visibility = Visibility.Collapsed;
+            DervBox.Visibility = Visibility.Collapsed;
+            RootBox.Visibility = Visibility.Collapsed;
+            EtymBox.Visibility = Visibility.Collapsed;
+            AudioButton.Visibility = Visibility.Collapsed;
+            KnownWordButton.Visibility = Visibility.Collapsed;
+            HideAllButtons();
+            return;
+        }
+
+        AudioButton.Visibility = Visibility.Visible;
+        KnownWordButton.Visibility = Visibility.Visible;
+
         // 头部：释义卡片、语素拆分小字（只在"查看后"显示）
         MeaningBox.Visibility = _revealed && _hasMeaning ? Visibility.Visible : Visibility.Collapsed;
         MorphText.Visibility = _revealed && _hasMorph ? Visibility.Visible : Visibility.Collapsed;

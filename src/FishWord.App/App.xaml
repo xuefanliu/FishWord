@@ -37,6 +37,9 @@
                 <Setter Property="Padding" Value="10,5"/>
                 <Setter Property="Cursor" Value="Hand"/>
                 <Setter Property="FontSize" Value="12"/>
+                <!-- 悬停提示快速出现（默认约 400ms 太慢，熟词按钮等关键提示要即时可见） -->
+                <Setter Property="ToolTipService.InitialShowDelay" Value="80"/>
+                <Setter Property="ToolTipService.ShowDuration" Value="15000"/>
                 <Setter Property="Template">
                     <Setter.Value>
                         <ControlTemplate TargetType="Button">

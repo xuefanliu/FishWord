@@ -45,16 +45,29 @@ _SENT_SPLIT = re.compile(r"(?<=[.!?])\s+")  # 句末标点后的空白（句子�
 
 
 def clean_text(s):
-    """清洗例句文本：去模板/HTML/实体，压缩空白，截断超长。"""
+    """清洗例句文本：去模板/HTML/实体（多重解码，处理双重编码），压缩空白，截断超长。"""
     if not s:
         return ""
     s = _TEMPLATE.sub(" ", s)
     s = _TAG.sub(" ", s)
-    s = html.unescape(s)
+    # HTML 实体可能被双重编码（&amp;#123; → &#123; → {），循环解码直到稳定
+    for _ in range(3):
+        decoded = html.unescape(s)
+        if decoded == s:
+            break
+        s = decoded
     s = _WS.sub(" ", s).strip()
     if len(s) > MAX_LEN:
         s = s[: MAX_LEN - 1].rstrip() + "…"
     return s
+
+
+_BAD_CHARS = re.compile(r"[{}\\]|&#\d|#\d{2,4};")  # 花括号/反斜杠/实体残留（LaTeX 公式、&#123; 或损坏的 #123; 形式）
+
+
+def looks_clean(text):
+    """清洗后仍含花括号/反斜杠/实体残留的文本（LaTeX 数学记号等）不适合作为例句。"""
+    return _BAD_CHARS.search(text) is None
 
 
 def word_count(text):
@@ -123,8 +136,9 @@ def pick_example(sense, word):
                     ex.get("text") or "", word, ex.get("bold_text_offsets")
                 )
                 t = clean_text(t)
-                # 必须包含目标单词，否则舍弃（过滤 "Near-synonym: xxx" 等混入 examples 的注释）
-                if t and word_count(t) <= MAX_WORD_COUNT and contains_word(t, word):
+                # 必须包含目标单词，否则舍弃（过滤 "Near-synonym: xxx" 等混入 examples 的注释）；
+                # 含花括号/反斜杠/实体残留的舍弃（过滤 LaTeX 数学记号、编码错误文本）
+                if t and word_count(t) <= MAX_WORD_COUNT and contains_word(t, word) and looks_clean(t):
                     candidates.append(t)
         if candidates:
             break

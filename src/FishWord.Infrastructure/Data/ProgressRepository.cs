@@ -432,6 +432,19 @@ public sealed class ProgressRepository : IDisposable
         cmd.ExecuteNonQuery();
     }
 
+    /// <summary>删除当天指定单词的学习记录（目标调小时裁剪多余的未开始占位词）。</summary>
+    public void DeleteDailyWords(string today, IEnumerable<int> wordIds)
+    {
+        foreach (var wid in wordIds)
+        {
+            using var cmd = _connection.CreateCommand();
+            cmd.CommandText = "DELETE FROM daily_study WHERE date = $d AND word_id = $w";
+            cmd.Parameters.AddWithValue("$d", today);
+            cmd.Parameters.AddWithValue("$w", wid);
+            cmd.ExecuteNonQuery();
+        }
+    }
+
     /// <summary>
     /// 每本内置词书的「已学习」词数（book_id → 已学习数），用于词书选择列表展示进度。
     /// 已学习 = 熟词（user_words.is_known=1，含系统排除 + 用户标记）∪ 已过三遍进复习队列（memory_states）。
