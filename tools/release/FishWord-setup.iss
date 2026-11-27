@@ -50,3 +50,20 @@ Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: de
 
 [Run]
 Filename: "{app}\{#MyAppExeName}"; Description: "立即运行 {#MyAppName}"; Flags: nowait postinstall skipifsilent
+
+[Code]
+// 安装文件前把旧版 db 备份为 .legacy-backup：
+// 旧版（路径 bug 时代）用户数据可能直接写在安装目录 db（装到 E:\Software 等非保护目录时无 UAC 虚拟化），
+// 覆盖安装会替换它——先备份，新版启动时 RecoverLegacyData 检测该备份并自动合并回用户数据副本。
+procedure CurStepChanged(CurStep: TSetupStep);
+var
+  OldDb, Backup: string;
+begin
+  if CurStep = ssInstall then
+  begin
+    OldDb := ExpandConstant('{app}\resources\fishword.db');
+    Backup := OldDb + '.legacy-backup';
+    if FileExists(OldDb) and (not FileExists(Backup)) then
+      FileCopy(OldDb, Backup, False);
+  end;
+end;

@@ -14,6 +14,21 @@ public static class ResourceLocator
     public static string DataDir { get; } = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "FishWord");
 
+    /// <summary>启动日志（排查资源定位问题用，追加写入 logs/data.log）。</summary>
+    private static void Log(string message)
+    {
+        try
+        {
+            var logDir = Path.Combine(DataDir, "logs");
+            Directory.CreateDirectory(logDir);
+            File.AppendAllText(
+                Path.Combine(logDir, "data.log"),
+                $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {message}{Environment.NewLine}",
+                System.Text.Encoding.UTF8);
+        }
+        catch { /* 日志失败不影响主流程 */ }
+    }
+
     /// <summary>迁移用用户表清单（列名，跳过自增 id）。</summary>
     private static readonly (string Table, string Columns)[] UserTables =
     {
@@ -24,24 +39,58 @@ public static class ResourceLocator
         ("settings",      "key, value"),
     };
 
-    /// <summary>查找资源：优先用户数据目录（首启由 EnsureUserData 从种子复制），其次程序目录向上查找种子。</summary>
+    /// <summary>
+    /// 查找资源：用户数据目录优先。
+    /// fishword.db 强制使用用户数据目录（副本缺失时从种子复制），**绝不回退到程序目录种子**——
+    /// 防止覆盖安装后误用「无用户数据」的新种子库（学习记录丢失）。其他只读资源（音频/505 名单）回退种子无风险。
+    /// </summary>
+    /// <summary>把仓库相对路径映射为用户数据目录路径（剥掉 resources/ 前缀，统一正反斜杠：
+    /// resources/fishword.db → DataDir\fishword.db；resources/audio/x.mp3 → DataDir\audio\x.mp3）。</summary>
+    private static string MapUserPath(string relativePath)
+    {
+        string rel = relativePath.Replace('\\', '/');
+        string mapped = rel.StartsWith("resources/", StringComparison.Ordinal)
+            ? rel["resources/".Length..]
+            : rel;
+        return Path.Combine(DataDir, mapped.Replace('/', Path.DirectorySeparatorChar));
+    }
+
     public static string? Find(string relativePath)
     {
-        // 1) 用户数据目录
-        var user = Path.Combine(DataDir, relativePath);
+        var user = MapUserPath(relativePath);
+
+        if (relativePath.Replace('\\', '/') == "resources/fishword.db")
+        {
+            Log($"Find(db): DataDir={DataDir}, user 存在={File.Exists(user)}");
+            if (File.Exists(user))
+                return user;
+
+            // 副本缺失：从种子复制（正常情况下 EnsureUserData 已建立；这里兜底防回退）
+            var seed = FindSeed(relativePath);
+            if (seed is null)
+            {
+                Log("Find(db): 种子未找到 → 返回 null");
+                return null;
+            }
+            try
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(user)!);
+                File.Copy(seed, user, overwrite: false);
+                CopySeedAudio();
+                Log($"Find(db): 副本缺失，已从种子 {seed} 复制");
+                return File.Exists(user) ? user : null;
+            }
+            catch (Exception ex)
+            {
+                Log($"Find(db): 复制失败 → 返回 null：{ex.Message}");
+                return null; // 复制失败：明确失败，绝不回退读种子
+            }
+        }
+
+        // 其他资源：用户目录优先，回退程序目录种子（只读使用）
         if (File.Exists(user))
             return user;
-
-        // 2) 程序目录向上查找种子（开发期与便携版）
-        var dir = new DirectoryInfo(AppContext.BaseDirectory);
-        while (dir is not null)
-        {
-            var candidate = Path.Combine(dir.FullName, relativePath);
-            if (File.Exists(candidate))
-                return candidate;
-            dir = dir.Parent;
-        }
-        return null;
+        return FindSeed(relativePath);
     }
 
     /// <summary>
@@ -51,15 +100,21 @@ public static class ResourceLocator
     /// </summary>
     public static void EnsureUserData()
     {
+        Log("EnsureUserData 开始");
         Directory.CreateDirectory(DataDir);
 
         var seedDb = FindSeed("resources/fishword.db");
         if (seedDb is null)
+        {
+            Log("EnsureUserData: 种子未找到，退出");
             return;
+        }
+        Log($"EnsureUserData: 种子 = {seedDb}");
 
         var dataDb = Path.Combine(DataDir, "fishword.db");
         if (!File.Exists(dataDb))
         {
+            Log("EnsureUserData: 用户副本不存在，从种子复制");
             File.Copy(seedDb, dataDb);
             CopySeedAudio();
             return;
@@ -67,11 +122,15 @@ public static class ResourceLocator
 
         int seedVer = GetUserVersion(seedDb);
         int dataVer = GetUserVersion(dataDb);
+        Log($"EnsureUserData: 版本 seed={seedVer} data={dataVer}");
         if (seedVer > dataVer)
         {
+            Log("EnsureUserData: 种子版本更新，开始迁移");
             MigrateUserData(dataDb, seedDb);
             CopySeedAudio(); // 词库升级时音频也覆盖更新
         }
+        // 注：旧版数据找回（RecoverLegacyData）已于 2026-11-27 移除——所有旧版用户已迁移完成，
+        // 新版严格读写 AppData 副本；应急恢复走 tools/merge_legacy_db.py 手动工具。
     }
 
     /// <summary>读取 SQLite 数据版本号（PRAGMA user_version），失败按 0 处理。</summary>

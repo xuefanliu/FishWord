@@ -58,7 +58,12 @@ def main():
     # 1. logo 资产（logo.png 进发布集 docs/images，logo.ico 进程序 Assets）
     run([py, "tools/release/make_logo.py"], "生成 logo 资产")
 
-    # 2. 发布库（副本上清空用户数据 + 预填 505 + 校验）
+    # 1.5 数据版本号自动 bump：打包必升版本 → 老用户升级时种子版本必高于 AppData 副本，
+    #     保证新词库内容一定迁移到老用户（忘记手动 bump 也不会漏发）。开发机 AppData 副本
+    #     版本随之落后，下次 dotnet run 也会自动迁移同步。
+    run([py, "tools/bump_data_version.py", "--db", "resources/fishword.db"], "数据版本号自动 bump")
+
+    # 2. 发布库（副本上清空用户数据 + 预填 505 + 校验；版本号随副本保留）
     run([py, "tools/release/prepare_release.py"], "生成发布库")
 
     # 3. 发布集同步到发布仓库目录（只拷文件，不碰 git）

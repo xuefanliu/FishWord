@@ -119,6 +119,9 @@ public partial class MainWindow : Window
             {
                 SpellingText.Text = "找不到 fishword.db";
                 PhoneticText.Text = "请确认 resources/fishword.db 存在";
+                // 防止数据层未初始化时后续操作连锁 NRE（设置/去学习/返回等）
+                StudyButton.IsEnabled = false;
+                ReviewButton.IsEnabled = false;
                 return;
             }
 
@@ -287,6 +290,9 @@ public partial class MainWindow : Window
 
     private void Settings_Click(object sender, RoutedEventArgs e)
     {
+        if (_progressRepo is null)
+            return; // 数据层未初始化（启动失败）时不响应
+
         _goal = _progressRepo!.GetStudyGoal();
         GoalText.Text = _goal.ToString();
         _hotKey = _progressRepo.GetSetting("hotkey") ?? "Ctrl+Alt+W";
@@ -1265,6 +1271,8 @@ public partial class MainWindow : Window
 
         AudioButton.Visibility = Visibility.Visible;
         KnownWordButton.Visibility = Visibility.Visible;
+        PhoneticText.Visibility = Visibility.Visible; // 完成态隐藏后恢复正常显示（文本为空时自然不可见）
+        PassText.Visibility = Visibility.Visible;
 
         // 头部：释义卡片、语素拆分小字（只在"查看后"显示）
         MeaningBox.Visibility = _revealed && _hasMeaning ? Visibility.Visible : Visibility.Collapsed;
